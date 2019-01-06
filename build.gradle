@@ -22,12 +22,9 @@ def resteasyVersion='3.5.1.Final'
 
 // In this section you declare the dependencies for your production and test code
 dependencies {
-    compile 'javax.validation:validation-api:1.1.0.Final'
     compile 'org.jboss.spec.javax.ws.rs:jboss-jaxrs-api_2.1_spec:1.0.0.Final'
-    compile 'javax.validation:validation-api:1.1.0.Final'
-    compile 'org.jboss.spec.javax.ws.rs:jboss-jaxrs-api_2.1_spec:1.0.0.Final'
-    compile 'org.jboss.spec.javax.xml.bind:jboss-jaxb-api_2.3_spec:1.0.0.Final'
     compile 'com.sun.mail:javax.mail:1.6.0'
+		compile 'javax.activation:activation:1.1.1'
     
     compile "org.slf4j:slf4j-api:$slf4jVersion"
     compile "io.undertow:undertow-core:$undertowVersion"
@@ -39,10 +36,6 @@ dependencies {
     runtime "org.jboss.resteasy:resteasy-jettison-provider:$resteasyVersion"
     runtime "org.jboss.resteasy:resteasy-validator-provider-11:$resteasyVersion"
     runtime 'org.glassfish.web:el-impl:2.2'
-    
-    testCompile "org.jboss.resteasy:resteasy-jaxrs:$resteasyVersion"
-    testCompile 'junit:junit:4.12'
-    testCompile 'org.mockito:mockito-core:2.19.0'
 }
 configurations {
 	compile {
