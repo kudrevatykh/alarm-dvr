@@ -1,0 +1,64 @@
+buildscript { repositories { jcenter() } }
+
+plugins {
+  id 'application'
+  id 'nebula.lint' version '9.3.3'
+}
+
+mainClassName = 'dvr.Main'
+
+gradleLint.rules = ['all-dependency', 'duplicate-dependency-class'] 
+
+// In this section you declare where to find the dependencies of your project
+repositories {
+    // Use 'jcenter' for resolving your dependencies.
+    // You can declare any Maven/Ivy/file repository here.
+    jcenter()
+}
+
+def slf4jVersion='1.7.25'
+def undertowVersion='2.0.9.Final'
+def resteasyVersion='3.5.1.Final'
+
+// In this section you declare the dependencies for your production and test code
+dependencies {
+    compile 'javax.validation:validation-api:1.1.0.Final'
+    compile 'org.jboss.spec.javax.ws.rs:jboss-jaxrs-api_2.1_spec:1.0.0.Final'
+    compile 'javax.validation:validation-api:1.1.0.Final'
+    compile 'org.jboss.spec.javax.ws.rs:jboss-jaxrs-api_2.1_spec:1.0.0.Final'
+    compile 'org.jboss.spec.javax.xml.bind:jboss-jaxb-api_2.3_spec:1.0.0.Final'
+    compile 'com.sun.mail:javax.mail:1.6.0'
+    
+    compile "org.slf4j:slf4j-api:$slf4jVersion"
+    compile "io.undertow:undertow-core:$undertowVersion"
+    compile "org.jboss.resteasy:resteasy-undertow:$resteasyVersion"
+    
+    runtime "io.undertow:undertow-servlet:$undertowVersion"
+    runtime "org.slf4j:slf4j-simple:$slf4jVersion"
+    runtime "org.slf4j:jcl-over-slf4j:$slf4jVersion"
+    runtime "org.jboss.resteasy:resteasy-jettison-provider:$resteasyVersion"
+    runtime "org.jboss.resteasy:resteasy-validator-provider-11:$resteasyVersion"
+    runtime 'org.glassfish.web:el-impl:2.2'
+    
+    testCompile "org.jboss.resteasy:resteasy-jaxrs:$resteasyVersion"
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.mockito:mockito-core:2.19.0'
+}
+configurations {
+	compile {
+		exclude group: 'commons-logging', module: 'commons-logging'
+	}
+	testCompile {
+		exclude group: 'commons-logging', module: 'commons-logging'
+	}
+}
+
+dependencyLocking {
+    lockAllConfigurations()
+}
+
+tasks.withType(JavaExec) {
+    if (System.getProperty('DEBUG', 'false') == 'true') {
+        jvmArgs '-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=9099'
+    }
+}
