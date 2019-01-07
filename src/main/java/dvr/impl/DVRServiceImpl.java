@@ -14,7 +14,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
 import javax.activation.FileDataSource;
-import javax.mail.BodyPart;
 import javax.mail.Message;
 import javax.mail.Multipart;
 import javax.mail.Session;
@@ -58,7 +57,7 @@ public class DVRServiceImpl implements DVRService {
     }
 
     @Override
-    public void startRecording(String channel) throws IOException {
+    public synchronized void startRecording(String channel) throws IOException {
         if (shouldStartRecording(channel)) {
             ProcessBuilder pb = new ProcessBuilder("ffmpeg", "-v", "16", "-y", "-t", "0.1", "-i",
                     url + "stream=0.sdp&channel=" + channel, "-r", "1/2", "-updatefirst", "1", "/tmp/" + channel + ".jpg")
@@ -81,7 +80,7 @@ public class DVRServiceImpl implements DVRService {
         }
     }
 
-    private void check(String channel) throws InterruptedException, IOException {
+    private synchronized void check(String channel) throws InterruptedException, IOException {
         AtomicLong atomicLong = recordings.get(channel);
         while (true) {
             long expect = atomicLong.get();
