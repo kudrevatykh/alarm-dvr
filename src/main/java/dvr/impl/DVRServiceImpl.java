@@ -3,7 +3,6 @@ package dvr.impl;
 import java.io.IOException;
 import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +30,7 @@ import org.slf4j.LoggerFactory;
 import dvr.DVRService;
 
 public class DVRServiceImpl implements DVRService {
-    
+
     private static Logger LOGGER = LoggerFactory.getLogger(DVRServiceImpl.class);
 
     private ConcurrentHashMap<String, AtomicLong> recordings = new ConcurrentHashMap<>();
@@ -39,11 +38,10 @@ public class DVRServiceImpl implements DVRService {
     private ConcurrentHashMap<String, Process> processes = new ConcurrentHashMap<>();
 
     private ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-    
+
     private String url = System.getenv("DVR_URL");
     private String to = System.getenv("MAIL_TO");
     private String host = System.getenv("MAIL_HOST");
-
 
     public boolean shouldStartRecording(String channel) {
         AtomicLong atomicLong = recordings.computeIfAbsent(channel, (key) -> new AtomicLong());
@@ -62,9 +60,12 @@ public class DVRServiceImpl implements DVRService {
     @Override
     public void startRecording(String channel) throws IOException {
         if (shouldStartRecording(channel)) {
-            ProcessBuilder pb = new ProcessBuilder("ffmpeg", "-v", "16", "-y", "-i",
-                     url + channel, "/tmp/" + channel + ".mp4")
+            ProcessBuilder pb = new ProcessBuilder("ffmpeg", "-v", "16", "-y", "-t", "0.1", "-i",
+                    url + "stream=0.sdp&channel=" + channel, "-r", "1/2", "-updatefirst", "1", "/tmp/" + channel + ".jpg")
                             .redirectError(Redirect.INHERIT).redirectOutput(Redirect.INHERIT);
+            pb.start();
+            pb = new ProcessBuilder("ffmpeg", "-v", "16", "-y", "-i", url + "stream=1.sdp&channel=" + channel,
+                    "/tmp/" + channel + ".mp4").redirectError(Redirect.INHERIT).redirectOutput(Redirect.INHERIT);
             processes.put(channel, pb.start());
             executorService.scheduleWithFixedDelay(() -> {
                 try {
@@ -76,7 +77,7 @@ public class DVRServiceImpl implements DVRService {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
                 }
-            }, 50, 1, TimeUnit.SECONDS);
+            }, 15, 1, TimeUnit.SECONDS);
         }
     }
 
@@ -87,10 +88,10 @@ public class DVRServiceImpl implements DVRService {
             if (expect == 0) {
                 throw new IllegalStateException();
             }
-            if (expect > System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(60)) {
+            if (expect > System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(20)) {
                 return;
             }
-            if (expect < System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(60) && atomicLong.compareAndSet(expect, 0)) {
+            if (expect < System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(20) && atomicLong.compareAndSet(expect, 0)) {
                 break;
             }
         }
@@ -99,15 +100,14 @@ public class DVRServiceImpl implements DVRService {
         f.destroy();
         f.waitFor();
         LOGGER.info("ffmpeg stopped");
-        Path p = Paths.get("/tmp", channel+".mp4");
-       
         sendEmail(channel);
-        Files.delete(p);
-        
+        Files.delete(Paths.get("/tmp", channel + ".mp4"));
+        Files.delete(Paths.get("/tmp", channel + ".jpg"));
+
     }
 
     void sendEmail(String channel) {
-     // Recipient's email ID needs to be mentioned.
+        // Recipient's email ID needs to be mentioned.
 
         // Sender's email ID needs to be mentioned
         String from = "video@alarm";
@@ -120,43 +120,49 @@ public class DVRServiceImpl implements DVRService {
             // Get the Session object.
             Session session = Session.getInstance(props);
 
-           // Create a default MimeMessage object.
-           Message message = new MimeMessage(session);
+            // Create a default MimeMessage object.
+            Message message = new MimeMessage(session);
 
-           // Set From: header field of the header.
-           message.setFrom(new InternetAddress(from));
+            // Set From: header field of the header.
+            message.setFrom(new InternetAddress(from));
 
-           // Set To: header field of the header.
-           message.setRecipients(Message.RecipientType.TO,
-              InternetAddress.parse(to));
+            // Set To: header field of the header.
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
 
-           // Set Subject: header field
-           message.setSubject("video form channel "+channel);
+            // Set Subject: header field
+            message.setSubject("video form channel " + channel);
 
-           // Create the message part
-           BodyPart messageBodyPart = new MimeBodyPart();
+            // Now set the actual message
+            
+            Multipart multipart = new MimeMultipart();
 
-           // Now set the actual message
-           messageBodyPart.setText("see attachement");
+            MimeBodyPart messageBodyPart = new MimeBodyPart();
+            String htmlText = "<img src=\"cid:image\"><br/><video src=\"cid:video\" type=\"video/mp4\">";
+            messageBodyPart.setContent(htmlText, "text/html");
+            multipart.addBodyPart(messageBodyPart);
 
-           Multipart multipart = new MimeMultipart();
+            messageBodyPart = new MimeBodyPart();
+            DataSource fds = new FileDataSource("/tmp/" + channel + ".jpg");
+            messageBodyPart.setDataHandler(new DataHandler(fds));
+            messageBodyPart.setHeader("Content-ID", "<image>");
 
-           multipart.addBodyPart(messageBodyPart);
+            multipart.addBodyPart(messageBodyPart);
 
-           messageBodyPart = new MimeBodyPart();
-           DataSource source = new FileDataSource("/tmp/"+channel+".mp4");
-           messageBodyPart.setDataHandler(new DataHandler(source));
-           messageBodyPart.setFileName(channel+".mp4");
-           multipart.addBodyPart(messageBodyPart);
+            messageBodyPart = new MimeBodyPart();
+            DataSource source = new FileDataSource("/tmp/" + channel + ".mp4");
+            messageBodyPart.setDataHandler(new DataHandler(source));
+            messageBodyPart.setHeader("Content-ID", "<video>");
+            messageBodyPart.setFileName(channel+".mp4");
+            multipart.addBodyPart(messageBodyPart);
 
-           message.setContent(multipart);
+            message.setContent(multipart);
 
-           Transport.send(message);
+            Transport.send(message);
 
-           LOGGER.info("Sent message successfully....");
-    
+            LOGGER.info("Sent message successfully....");
+
         } catch (Exception e) {
-           e.printStackTrace();
+            e.printStackTrace();
         }
 
     }
