@@ -60,7 +60,7 @@ public class DVRServiceImpl implements DVRService {
     public synchronized void startRecording(String channel) throws IOException {
         if (shouldStartRecording(channel)) {
             ProcessBuilder pb = new ProcessBuilder("ffmpeg", "-v", "16", "-y", "-t", "0.1", "-i",
-                    url + "stream=0.sdp&channel=" + channel, "-r", "1/2", "-updatefirst", "1", "/tmp/" + channel + ".jpg")
+                    url + "stream=0.sdp&channel=" + channel, "-r", "1/2", "-update", "1", "/tmp/" + channel + ".jpg")
                             .redirectError(Redirect.INHERIT).redirectOutput(Redirect.INHERIT);
             pb.start();
             pb = new ProcessBuilder("ffmpeg", "-v", "16", "-y", "-i", url + "stream=1.sdp&channel=" + channel,
